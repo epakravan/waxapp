@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>David's T1T T-Shirt Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 David's T1T T-Shirt Tracker</h1>
+            <p>Log and visualize David's t1t t-shirt appearances on Zoom calls</p>
+        </header>
+
+        <main>
+            <!-- Logging Section -->
+            <section class="logging-section">
+                <h2>Log T-Shirt Appearance</h2>
+                <div class="log-form">
+                    <div class="form-group">
+                        <label for="date-input">Date:</label>
+                        <input type="date" id="date-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="notes-input">Notes (optional):</label>
+                        <input type="text" id="notes-input" placeholder="e.g., Morning standup, Client demo">
+                    </div>
+                    <button id="log-btn" class="btn-primary">Log T-Shirt Day</button>
+                </div>
+            </section>
+
+            <!-- Statistics Section -->
+            <section class="stats-section">
+                <h2>Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-days">0</div>
+                        <div class="stat-label">Total T-Shirt Days</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="this-month">0</div>
+                        <div class="stat-label">This Month</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="longest-streak">0</div>
+                        <div class="stat-label">Longest Streak</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="current-streak">0</div>
+                        <div class="stat-label">Current Streak</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Calendar Section -->
+            <section class="calendar-section">
+                <h2>Calendar View</h2>
+                <div class="calendar-controls">
+                    <button id="prev-month" class="btn-secondary">&lt;</button>
+                    <span id="current-month-year"></span>
+                    <button id="next-month" class="btn-secondary">&gt;</button>
+                </div>
+                <div id="calendar-grid" class="calendar-grid"></div>
+            </section>
+
+            <!-- Chart Section -->
+            <section class="chart-section">
+                <h2>Monthly Trends</h2>
+                <canvas id="trend-chart" width="400" height="200"></canvas>
+            </section>
+
+            <!-- Recent Entries Section -->
+            <section class="entries-section">
+                <h2>Recent Entries</h2>
+                <div id="recent-entries" class="entries-list"></div>
+            </section>
+
+            <!-- Data Management -->
+            <section class="data-section">
+                <h2>Data Management</h2>
+                <div class="data-controls">
+                    <button id="export-btn" class="btn-secondary">Export Data</button>
+                    <button id="import-btn" class="btn-secondary">Import Data</button>
+                    <input type="file" id="import-file" accept=".json" style="display: none;">
+                    <button id="clear-btn" class="btn-danger">Clear All Data</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

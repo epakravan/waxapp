@@ -1,0 +1,523 @@
+class TShirtTracker {
+    constructor() {
+        this.data = this.loadData();
+        this.currentDate = new Date();
+        this.chart = null;
+        this.init();
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.setTodayAsDefault();
+        this.updateStats();
+        this.renderCalendar();
+        this.renderChart();
+        this.renderRecentEntries();
+    }
+
+    setupEventListeners() {
+        // Log button
+        document.getElementById('log-btn').addEventListener('click', () => {
+            this.logTShirtDay();
+        });
+
+        // Calendar navigation
+        document.getElementById('prev-month').addEventListener('click', () => {
+            this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+            this.renderCalendar();
+        });
+
+        document.getElementById('next-month').addEventListener('click', () => {
+            this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+            this.renderCalendar();
+        });
+
+        // Data management
+        document.getElementById('export-btn').addEventListener('click', () => {
+            this.exportData();
+        });
+
+        document.getElementById('import-btn').addEventListener('click', () => {
+            document.getElementById('import-file').click();
+        });
+
+        document.getElementById('import-file').addEventListener('change', (e) => {
+            this.importData(e.target.files[0]);
+        });
+
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            this.clearAllData();
+        });
+
+        // Enter key support for form
+        document.getElementById('notes-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.logTShirtDay();
+            }
+        });
+    }
+
+    setTodayAsDefault() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('date-input').value = today;
+    }
+
+    loadData() {
+        const stored = localStorage.getItem('tshirt-tracker-data');
+        if (stored) {
+            try {
+                return JSON.parse(stored);
+            } catch (e) {
+                console.error('Error parsing stored data:', e);
+                return {};
+            }
+        }
+        return {};
+    }
+
+    saveData() {
+        localStorage.setItem('tshirt-tracker-data', JSON.stringify(this.data));
+    }
+
+    logTShirtDay() {
+        const dateInput = document.getElementById('date-input');
+        const notesInput = document.getElementById('notes-input');
+        
+        const date = dateInput.value;
+        const notes = notesInput.value.trim();
+
+        if (!date) {
+            alert('Please select a date');
+            return;
+        }
+
+        if (this.data[date]) {
+            if (!confirm('An entry already exists for this date. Do you want to update it?')) {
+                return;
+            }
+        }
+
+        this.data[date] = {
+            notes: notes,
+            timestamp: new Date().toISOString()
+        };
+
+        this.saveData();
+        this.updateStats();
+        this.renderCalendar();
+        this.renderChart();
+        this.renderRecentEntries();
+        
+        // Clear notes input
+        notesInput.value = '';
+        
+        // Show success message
+        this.showToast('T-shirt day logged successfully! 👕');
+    }
+
+    removeEntry(date) {
+        if (confirm('Are you sure you want to remove this entry?')) {
+            delete this.data[date];
+            this.saveData();
+            this.updateStats();
+            this.renderCalendar();
+            this.renderChart();
+            this.renderRecentEntries();
+            this.showToast('Entry removed');
+        }
+    }
+
+    editEntry(date) {
+        const entry = this.data[date];
+        const newNotes = prompt('Edit notes:', entry.notes || '');
+        
+        if (newNotes !== null) {
+            this.data[date].notes = newNotes.trim();
+            this.saveData();
+            this.renderRecentEntries();
+            this.showToast('Entry updated');
+        }
+    }
+
+    updateStats() {
+        const dates = Object.keys(this.data).sort();
+        const totalDays = dates.length;
+        
+        // This month count
+        const now = new Date();
+        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        
+        const thisMonthCount = dates.filter(date => {
+            const d = new Date(date);
+            return d >= thisMonthStart && d <= thisMonthEnd;
+        }).length;
+
+        // Calculate streaks
+        const { longestStreak, currentStreak } = this.calculateStreaks(dates);
+
+        document.getElementById('total-days').textContent = totalDays;
+        document.getElementById('this-month').textContent = thisMonthCount;
+        document.getElementById('longest-streak').textContent = longestStreak;
+        document.getElementById('current-streak').textContent = currentStreak;
+    }
+
+    calculateStreaks(sortedDates) {
+        if (sortedDates.length === 0) {
+            return { longestStreak: 0, currentStreak: 0 };
+        }
+
+        let longestStreak = 1;
+        let currentStreakLength = 1;
+        let tempStreak = 1;
+
+        // Calculate longest streak
+        for (let i = 1; i < sortedDates.length; i++) {
+            const prevDate = new Date(sortedDates[i - 1]);
+            const currDate = new Date(sortedDates[i]);
+            const dayDiff = (currDate - prevDate) / (1000 * 60 * 60 * 24);
+
+            if (dayDiff === 1) {
+                tempStreak++;
+            } else {
+                longestStreak = Math.max(longestStreak, tempStreak);
+                tempStreak = 1;
+            }
+        }
+        longestStreak = Math.max(longestStreak, tempStreak);
+
+        // Calculate current streak (from today backwards)
+        const today = new Date().toISOString().split('T')[0];
+        const todayIndex = sortedDates.indexOf(today);
+        
+        if (todayIndex === -1) {
+            currentStreakLength = 0;
+        } else {
+            let streakCount = 1;
+            for (let i = todayIndex - 1; i >= 0; i--) {
+                const prevDate = new Date(sortedDates[i]);
+                const currDate = new Date(sortedDates[i + 1]);
+                const dayDiff = (currDate - prevDate) / (1000 * 60 * 60 * 24);
+                
+                if (dayDiff === 1) {
+                    streakCount++;
+                } else {
+                    break;
+                }
+            }
+            currentStreakLength = streakCount;
+        }
+
+        return { longestStreak, currentStreak: currentStreakLength };
+    }
+
+    renderCalendar() {
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth();
+        
+        // Update month/year display
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        document.getElementById('current-month-year').textContent = 
+            `${monthNames[month]} ${year}`;
+
+        const calendarGrid = document.getElementById('calendar-grid');
+        calendarGrid.innerHTML = '';
+
+        // Add day headers
+        const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        dayHeaders.forEach(day => {
+            const headerEl = document.createElement('div');
+            headerEl.className = 'calendar-header';
+            headerEl.textContent = day;
+            calendarGrid.appendChild(headerEl);
+        });
+
+        // Get first day of month and number of days
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+        // Add previous month's trailing days
+        for (let i = firstDay - 1; i >= 0; i--) {
+            const dayEl = this.createCalendarDay(
+                daysInPrevMonth - i, 
+                true, 
+                new Date(year, month - 1, daysInPrevMonth - i)
+            );
+            calendarGrid.appendChild(dayEl);
+        }
+
+        // Add current month's days
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayEl = this.createCalendarDay(
+                day, 
+                false, 
+                new Date(year, month, day)
+            );
+            calendarGrid.appendChild(dayEl);
+        }
+
+        // Add next month's leading days
+        const remainingCells = 42 - (firstDay + daysInMonth); // 6 rows * 7 days
+        for (let day = 1; day <= remainingCells; day++) {
+            const dayEl = this.createCalendarDay(
+                day, 
+                true, 
+                new Date(year, month + 1, day)
+            );
+            calendarGrid.appendChild(dayEl);
+        }
+    }
+
+    createCalendarDay(day, isOtherMonth, date) {
+        const dayEl = document.createElement('div');
+        dayEl.className = 'calendar-day';
+        dayEl.textContent = day;
+
+        if (isOtherMonth) {
+            dayEl.classList.add('other-month');
+        }
+
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // Check if it's today
+        const today = new Date().toISOString().split('T')[0];
+        if (dateStr === today) {
+            dayEl.classList.add('today');
+        }
+
+        // Check if it's a t-shirt day
+        if (this.data[dateStr]) {
+            dayEl.classList.add('tshirt-day');
+            dayEl.title = `T-shirt day! ${this.data[dateStr].notes || ''}`;
+        }
+
+        // Add click handler for quick logging
+        dayEl.addEventListener('click', () => {
+            if (!isOtherMonth) {
+                document.getElementById('date-input').value = dateStr;
+                if (this.data[dateStr]) {
+                    // If entry exists, show edit options
+                    const action = confirm('Entry exists for this date. Click OK to edit, Cancel to remove.');
+                    if (action) {
+                        this.editEntry(dateStr);
+                    } else {
+                        this.removeEntry(dateStr);
+                    }
+                } else {
+                    // Quick log for this date
+                    if (confirm(`Log t-shirt day for ${date.toLocaleDateString()}?`)) {
+                        this.data[dateStr] = {
+                            notes: '',
+                            timestamp: new Date().toISOString()
+                        };
+                        this.saveData();
+                        this.updateStats();
+                        this.renderCalendar();
+                        this.renderChart();
+                        this.renderRecentEntries();
+                        this.showToast('T-shirt day logged! 👕');
+                    }
+                }
+            }
+        });
+
+        return dayEl;
+    }
+
+    renderChart() {
+        const ctx = document.getElementById('trend-chart').getContext('2d');
+        
+        if (this.chart) {
+            this.chart.destroy();
+        }
+
+        // Prepare data for last 12 months
+        const monthlyData = this.getMonthlyData();
+        
+        this.chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: monthlyData.labels,
+                datasets: [{
+                    label: 'T-shirt Days',
+                    data: monthlyData.data,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    getMonthlyData() {
+        const months = [];
+        const data = [];
+        const now = new Date();
+
+        // Get last 12 months
+        for (let i = 11; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            
+            months.push(date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
+            
+            // Count t-shirt days in this month
+            const count = Object.keys(this.data).filter(dateStr => 
+                dateStr.startsWith(monthKey)
+            ).length;
+            
+            data.push(count);
+        }
+
+        return { labels: months, data };
+    }
+
+    renderRecentEntries() {
+        const container = document.getElementById('recent-entries');
+        const dates = Object.keys(this.data).sort().reverse().slice(0, 10);
+
+        if (dates.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #718096; font-style: italic;">No entries yet. Log your first t-shirt day!</p>';
+            return;
+        }
+
+        container.innerHTML = dates.map(date => {
+            const entry = this.data[date];
+            const dateObj = new Date(date);
+            const formattedDate = dateObj.toLocaleDateString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+
+            return `
+                <div class="entry-item">
+                    <div>
+                        <div class="entry-date">${formattedDate}</div>
+                        ${entry.notes ? `<div class="entry-notes">${entry.notes}</div>` : ''}
+                    </div>
+                    <div class="entry-actions">
+                        <button class="btn-small btn-edit" onclick="tracker.editEntry('${date}')">Edit</button>
+                        <button class="btn-small btn-delete" onclick="tracker.removeEntry('${date}')">Delete</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    exportData() {
+        const dataStr = JSON.stringify(this.data, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `david-tshirt-data-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        
+        URL.revokeObjectURL(url);
+        this.showToast('Data exported successfully');
+    }
+
+    importData(file) {
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                
+                if (confirm('This will merge the imported data with existing data. Continue?')) {
+                    // Merge data
+                    this.data = { ...this.data, ...importedData };
+                    this.saveData();
+                    this.updateStats();
+                    this.renderCalendar();
+                    this.renderChart();
+                    this.renderRecentEntries();
+                    this.showToast('Data imported successfully');
+                }
+            } catch (error) {
+                alert('Error importing data. Please check the file format.');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    clearAllData() {
+        if (confirm('Are you sure you want to clear ALL data? This cannot be undone.')) {
+            if (confirm('This will permanently delete all t-shirt tracking data. Are you absolutely sure?')) {
+                this.data = {};
+                this.saveData();
+                this.updateStats();
+                this.renderCalendar();
+                this.renderChart();
+                this.renderRecentEntries();
+                this.showToast('All data cleared');
+            }
+        }
+    }
+
+    showToast(message) {
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #48bb78;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            font-weight: 500;
+            transition: opacity 0.3s;
+        `;
+        toast.textContent = message;
+        
+        document.body.appendChild(toast);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 300);
+        }, 3000);
+    }
+}
+
+// Initialize the app when DOM is loaded
+let tracker;
+document.addEventListener('DOMContentLoaded', () => {
+    tracker = new TShirtTracker();
+});
