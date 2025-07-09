@@ -18,6 +18,7 @@ class TShirtTracker {
         
         this.setupEventListeners();
         this.setTodayAsDefault();
+        this.startClock();
         await this.setupFirebaseListener();
         this.updateStats();
         this.renderCalendar();
@@ -145,14 +146,14 @@ class TShirtTracker {
     }
 
     updateConnectionStatus(isOnline) {
-        const statusEl = document.getElementById('online-status');
-        if (statusEl) {
+        const indicator = document.getElementById('connection-indicator');
+        if (indicator) {
             if (isOnline) {
-                statusEl.innerHTML = '🟢 Online';
-                statusEl.style.color = '#48bb78';
+                indicator.classList.remove('offline');
+                indicator.title = 'Connected to Firebase Database';
             } else {
-                statusEl.innerHTML = '🔴 Offline';
-                statusEl.style.color = '#e53e3e';
+                indicator.classList.add('offline');
+                indicator.title = 'Connection Lost - Retrying...';
             }
         }
     }
@@ -467,6 +468,27 @@ class TShirtTracker {
 
     // Firebase provides real-time updates, no manual refresh needed!
     
+    updateClock() {
+        const now = new Date();
+        const ptTime = now.toLocaleTimeString('en-US', {
+            timeZone: 'America/Los_Angeles',
+            hour12: true,
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+        
+        const currentTimeEl = document.getElementById('current-time');
+        const taskbarTimeEl = document.getElementById('taskbar-time');
+        
+        if (currentTimeEl) currentTimeEl.textContent = ptTime;
+        if (taskbarTimeEl) taskbarTimeEl.textContent = ptTime;
+    }
+
+    startClock() {
+        this.updateClock();
+        setInterval(() => this.updateClock(), 1000);
+    }
+
     cleanup() {
         // Clean up Firebase listener when page unloads
         if (this.unsubscribe) {
@@ -673,31 +695,18 @@ class TShirtTracker {
     }
 
     showToast(message, type = 'success') {
-        // Create toast element
+        // Create Windows 95 style dialog
         const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
         
-        const colors = {
-            success: '#48bb78',
-            error: '#e53e3e',
-            info: '#4299e1',
-            warning: '#ed8936'
-        };
+        const icon = type === 'error' ? '⚠️' : type === 'info' ? 'ℹ️' : '✓';
         
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${colors[type] || colors.success};
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            z-index: 1000;
-            font-weight: 500;
-            transition: opacity 0.3s;
-            max-width: 300px;
+        toast.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 14px;">${icon}</span>
+                <span>${message}</span>
+            </div>
         `;
-        toast.textContent = message;
         
         document.body.appendChild(toast);
         

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>David's T1T T-Shirt Tracker</title>
+    <title>David's T1T T-Shirt Tracker - Windows 95 Edition</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
@@ -16,90 +16,153 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>🎯 David's T1T T-Shirt Tracker</h1>
-            <p>Collaborative tracking of David's t1t t-shirt appearances on Zoom calls</p>
-            <div style="display: flex; justify-content: center; gap: 20px; margin-top: 10px; font-size: 0.9rem; opacity: 0.8;">
-                <span>🕒 Pacific Time (PT)</span>
-                <span>🔥 Firebase real-time</span>
-                <span id="online-status">🔴 Connecting...</span>
+        <!-- Desktop Icon -->
+        <div class="desktop-icon">
+            <div style="font-size: 32px;">👕</div>
+            <div class="desktop-icon-label">T-Shirt.exe</div>
+        </div>
+
+        <!-- Main Application Window -->
+        <div class="window">
+            <div class="window-header">
+                <span class="window-icon">🎯</span>
+                <span class="window-title">David's T1T T-Shirt Tracker v1.0</span>
+                <div class="window-controls">
+                    <div class="window-control">_</div>
+                    <div class="window-control">□</div>
+                    <div class="window-control">×</div>
+                </div>
             </div>
-        </header>
-
-        <main>
-            <!-- Logging Section -->
-            <section class="logging-section">
-                <h2>Log T-Shirt Appearance</h2>
-                <div class="log-form">
-                    <div class="form-group">
-                        <label for="date-input">Date:</label>
-                        <input type="date" id="date-input" required>
+            <div class="window-content">
+                <!-- Status Bar -->
+                <div class="status-bar">
+                    <div class="status-item">
+                        <div class="status-indicator" id="connection-indicator"></div>
+                        <span>Firebase Database</span>
                     </div>
-                    <div class="form-group">
-                        <label for="notes-input">Notes (optional):</label>
-                        <input type="text" id="notes-input" placeholder="e.g., Morning standup, Client demo">
+                    <div class="status-item">
+                        <span>🕒 Pacific Time Zone</span>
                     </div>
-                    <button id="log-btn" class="btn-primary">Log T-Shirt Day</button>
-                </div>
-            </section>
-
-            <!-- Statistics Section -->
-            <section class="stats-section">
-                <h2>Statistics</h2>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-number" id="total-days">0</div>
-                        <div class="stat-label">Total T-Shirt Days</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="this-month">0</div>
-                        <div class="stat-label">This Month</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="longest-streak">0</div>
-                        <div class="stat-label">Longest Streak</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number" id="current-streak">0</div>
-                        <div class="stat-label">Current Streak</div>
+                    <div class="status-item">
+                        <span id="current-time"></span>
                     </div>
                 </div>
-            </section>
 
-            <!-- Calendar Section -->
-            <section class="calendar-section">
-                <h2>Calendar View</h2>
-                <div class="calendar-controls">
-                    <button id="prev-month" class="btn-secondary">&lt;</button>
-                    <span id="current-month-year"></span>
-                    <button id="next-month" class="btn-secondary">&gt;</button>
+                <!-- Logging Section -->
+                <div class="window" style="margin: 8px 0;">
+                    <div class="window-header">
+                        <span class="window-icon">📝</span>
+                        <span class="window-title">Log T-Shirt Entry</span>
+                    </div>
+                    <div class="window-content">
+                        <div class="form-group">
+                            <label for="date-input">Date:</label>
+                            <input type="date" id="date-input" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="notes-input">Notes:</label>
+                            <input type="text" id="notes-input" placeholder="e.g., Morning standup, Client demo" style="width: 200px;">
+                        </div>
+                        <div class="form-group">
+                            <button id="log-btn" class="btn-win95">Execute Log Entry</button>
+                        </div>
+                    </div>
                 </div>
-                <div id="calendar-grid" class="calendar-grid"></div>
-            </section>
 
-            <!-- Chart Section -->
-            <section class="chart-section">
-                <h2>Monthly Trends</h2>
-                <canvas id="trend-chart" width="400" height="200"></canvas>
-            </section>
-
-            <!-- Recent Entries Section -->
-            <section class="entries-section">
-                <h2>Recent Entries</h2>
-                <div id="recent-entries" class="entries-list"></div>
-            </section>
-
-            <!-- Data Management -->
-            <section class="data-section">
-                <h2>Data Management</h2>
-                <div class="data-controls">
-                    <button id="export-btn" class="btn-secondary">Export Data</button>
-                    <button id="import-btn" class="btn-secondary">Import Data</button>
-                    <input type="file" id="import-file" accept=".json" style="display: none;">
-                    <button id="clear-btn" class="btn-danger">Clear All Data</button>
+                <!-- Statistics Window -->
+                <div class="window" style="margin: 8px 0;">
+                    <div class="window-header">
+                        <span class="window-icon">📊</span>
+                        <span class="window-title">System Statistics</span>
+                    </div>
+                    <div class="window-content">
+                        <div class="stats-grid">
+                            <div class="stat-window">
+                                <div class="stat-number" id="total-days">0</div>
+                                <div class="stat-label">Total Days</div>
+                            </div>
+                            <div class="stat-window">
+                                <div class="stat-number" id="this-month">0</div>
+                                <div class="stat-label">This Month</div>
+                            </div>
+                            <div class="stat-window">
+                                <div class="stat-number" id="longest-streak">0</div>
+                                <div class="stat-label">Max Streak</div>
+                            </div>
+                            <div class="stat-window">
+                                <div class="stat-number" id="current-streak">0</div>
+                                <div class="stat-label">Current</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </section>
-        </main>
+
+                <!-- Calendar Window -->
+                <div class="window" style="margin: 8px 0;">
+                    <div class="window-header">
+                        <span class="window-icon">📅</span>
+                        <span class="window-title">Calendar View</span>
+                    </div>
+                    <div class="window-content">
+                        <div class="calendar-controls">
+                            <button id="prev-month" class="btn-win95">&lt;</button>
+                            <div class="calendar-month" id="current-month-year"></div>
+                            <button id="next-month" class="btn-win95">&gt;</button>
+                        </div>
+                        <div id="calendar-grid" class="calendar-grid"></div>
+                    </div>
+                </div>
+
+                <!-- Chart Window -->
+                <div class="window" style="margin: 8px 0;">
+                    <div class="window-header">
+                        <span class="window-icon">📈</span>
+                        <span class="window-title">Trend Analysis</span>
+                    </div>
+                    <div class="window-content">
+                        <div class="chart-container">
+                            <canvas id="trend-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Entries Window -->
+                <div class="window" style="margin: 8px 0;">
+                    <div class="window-header">
+                        <span class="window-icon">📋</span>
+                        <span class="window-title">Recent Entries</span>
+                    </div>
+                    <div class="window-content">
+                        <div id="recent-entries" class="entries-list"></div>
+                    </div>
+                </div>
+
+                <!-- Data Management Window -->
+                <div class="window" style="margin: 8px 0;">
+                    <div class="window-header">
+                        <span class="window-icon">💾</span>
+                        <span class="window-title">Data Management</span>
+                    </div>
+                    <div class="window-content">
+                        <div class="data-controls">
+                            <button id="export-btn" class="btn-win95">Export Data</button>
+                            <button id="import-btn" class="btn-win95">Import Data</button>
+                            <input type="file" id="import-file" accept=".json" style="display: none;">
+                            <button id="clear-btn" class="btn-win95" style="background: #ff8080;">Clear All Data</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Windows 95 Taskbar -->
+        <div class="taskbar">
+            <button class="start-button btn-win95">
+                <span style="margin-right: 4px;">🏁</span>
+                Start
+            </button>
+            <div class="taskbar-time" id="taskbar-time"></div>
+        </div>
     </div>
 
     <script src="script.js"></script>
