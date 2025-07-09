@@ -1,18 +1,22 @@
 class TShirtTracker {
     constructor() {
-        this.data = this.loadData();
+        this.data = {};
         this.currentDate = new Date();
         this.chart = null;
+        this.lastUpdateTime = null;
+        this.refreshInterval = null;
         this.init();
     }
 
-    init() {
+    async init() {
         this.setupEventListeners();
         this.setTodayAsDefault();
+        await this.loadData();
         this.updateStats();
         this.renderCalendar();
         this.renderChart();
         this.renderRecentEntries();
+        this.startAutoRefresh();
     }
 
     setupEventListeners() {
@@ -100,24 +104,111 @@ class TShirtTracker {
         };
     }
 
-    loadData() {
-        const stored = localStorage.getItem('tshirt-tracker-data');
-        if (stored) {
-            try {
-                return JSON.parse(stored);
-            } catch (e) {
-                console.error('Error parsing stored data:', e);
-                return {};
+    async loadData() {
+        try {
+            const response = await fetch('/api/data');
+            if (response.ok) {
+                this.data = await response.json();
+                this.updateConnectionStatus(true);
+            } else {
+                throw new Error('Failed to load data');
+            }
+        } catch (error) {
+            console.error('Error loading data:', error);
+            this.showToast('Failed to connect to server', 'error');
+            this.updateConnectionStatus(false);
+            this.data = {};
+        }
+    }
+
+    updateConnectionStatus(isOnline) {
+        const statusEl = document.getElementById('online-status');
+        if (statusEl) {
+            if (isOnline) {
+                statusEl.innerHTML = '🟢 Online';
+                statusEl.style.color = '#48bb78';
+            } else {
+                statusEl.innerHTML = '🔴 Offline';
+                statusEl.style.color = '#e53e3e';
             }
         }
-        return {};
     }
 
-    saveData() {
-        localStorage.setItem('tshirt-tracker-data', JSON.stringify(this.data));
+    async saveEntry(date, notes) {
+        try {
+            const response = await fetch('/api/data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    date,
+                    notes,
+                    userAgent: navigator.userAgent
+                })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                this.data[date] = result.data;
+                return true;
+            } else {
+                throw new Error('Failed to save entry');
+            }
+        } catch (error) {
+            console.error('Error saving entry:', error);
+            this.showToast('Failed to save entry', 'error');
+            return false;
+        }
     }
 
-    logTShirtDay() {
+    async updateEntry(date, notes) {
+        try {
+            const response = await fetch(`/api/data/${date}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    notes,
+                    userAgent: navigator.userAgent
+                })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                this.data[date] = result.data;
+                return true;
+            } else {
+                throw new Error('Failed to update entry');
+            }
+        } catch (error) {
+            console.error('Error updating entry:', error);
+            this.showToast('Failed to update entry', 'error');
+            return false;
+        }
+    }
+
+    async deleteEntry(date) {
+        try {
+            const response = await fetch(`/api/data/${date}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                delete this.data[date];
+                return true;
+            } else {
+                throw new Error('Failed to delete entry');
+            }
+        } catch (error) {
+            console.error('Error deleting entry:', error);
+            this.showToast('Failed to delete entry', 'error');
+            return false;
+        }
+    }
+
+    async logTShirtDay() {
         const dateInput = document.getElementById('date-input');
         const notesInput = document.getElementById('notes-input');
         
@@ -133,47 +224,52 @@ class TShirtTracker {
             if (!confirm('An entry already exists for this date. Do you want to update it?')) {
                 return;
             }
+            
+            const success = await this.updateEntry(date, notes);
+            if (success) {
+                this.updateStats();
+                this.renderCalendar();
+                this.renderChart();
+                this.renderRecentEntries();
+                notesInput.value = '';
+                this.showToast('T-shirt day updated successfully! 👕');
+            }
+        } else {
+            const success = await this.saveEntry(date, notes);
+            if (success) {
+                this.updateStats();
+                this.renderCalendar();
+                this.renderChart();
+                this.renderRecentEntries();
+                notesInput.value = '';
+                this.showToast('T-shirt day logged successfully! 👕');
+            }
         }
-
-        this.data[date] = {
-            notes: notes,
-            timestamp: new Date().toISOString()
-        };
-
-        this.saveData();
-        this.updateStats();
-        this.renderCalendar();
-        this.renderChart();
-        this.renderRecentEntries();
-        
-        // Clear notes input
-        notesInput.value = '';
-        
-        // Show success message
-        this.showToast('T-shirt day logged successfully! 👕');
     }
 
-    removeEntry(date) {
+    async removeEntry(date) {
         if (confirm('Are you sure you want to remove this entry?')) {
-            delete this.data[date];
-            this.saveData();
-            this.updateStats();
-            this.renderCalendar();
-            this.renderChart();
-            this.renderRecentEntries();
-            this.showToast('Entry removed');
+            const success = await this.deleteEntry(date);
+            if (success) {
+                this.updateStats();
+                this.renderCalendar();
+                this.renderChart();
+                this.renderRecentEntries();
+                this.showToast('Entry removed');
+            }
         }
     }
 
-    editEntry(date) {
+    async editEntry(date) {
         const entry = this.data[date];
         const newNotes = prompt('Edit notes:', entry.notes || '');
         
         if (newNotes !== null) {
-            this.data[date].notes = newNotes.trim();
-            this.saveData();
-            this.renderRecentEntries();
-            this.showToast('Entry updated');
+            const success = await this.updateEntry(date, newNotes.trim());
+            if (success) {
+                this.renderRecentEntries();
+                this.showToast('Entry updated');
+            }
         }
     }
 
@@ -354,22 +450,56 @@ class TShirtTracker {
                 } else {
                     // Quick log for this date
                     if (confirm(`Log t-shirt day for ${this.formatDateInPT(dateStr)}?`)) {
-                        this.data[dateStr] = {
-                            notes: '',
-                            timestamp: new Date().toISOString()
-                        };
-                        this.saveData();
-                        this.updateStats();
-                        this.renderCalendar();
-                        this.renderChart();
-                        this.renderRecentEntries();
-                        this.showToast('T-shirt day logged! 👕');
+                        this.quickLogEntry(dateStr);
                     }
                 }
             }
         });
 
         return dayEl;
+    }
+
+    async quickLogEntry(dateStr) {
+        const success = await this.saveEntry(dateStr, '');
+        if (success) {
+            this.updateStats();
+            this.renderCalendar();
+            this.renderChart();
+            this.renderRecentEntries();
+            this.showToast('T-shirt day logged! 👕');
+        }
+    }
+
+    startAutoRefresh() {
+        // Refresh data every 30 seconds to show other users' updates
+        this.refreshInterval = setInterval(() => {
+            this.refreshData();
+        }, 30000);
+    }
+
+    async refreshData() {
+        try {
+            const response = await fetch('/api/data');
+            if (response.ok) {
+                this.updateConnectionStatus(true);
+                const newData = await response.json();
+                const hasChanges = JSON.stringify(this.data) !== JSON.stringify(newData);
+                
+                if (hasChanges) {
+                    this.data = newData;
+                    this.updateStats();
+                    this.renderCalendar();
+                    this.renderChart();
+                    this.renderRecentEntries();
+                    this.showToast('Data updated by another user', 'info');
+                }
+            } else {
+                this.updateConnectionStatus(false);
+            }
+        } catch (error) {
+            console.error('Error refreshing data:', error);
+            this.updateConnectionStatus(false);
+        }
     }
 
     renderChart() {
@@ -477,67 +607,105 @@ class TShirtTracker {
         }).join('');
     }
 
-    exportData() {
-        const dataStr = JSON.stringify(this.data, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `david-tshirt-data-${new Date().toISOString().split('T')[0]}.json`;
-        link.click();
-        
-        URL.revokeObjectURL(url);
-        this.showToast('Data exported successfully');
+    async exportData() {
+        try {
+            // Get fresh data from server
+            await this.loadData();
+            
+            const dataStr = JSON.stringify(this.data, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `david-tshirt-data-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+            this.showToast('Data exported successfully');
+        } catch (error) {
+            this.showToast('Failed to export data', 'error');
+        }
     }
 
-    importData(file) {
+    async importData(file) {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             try {
                 const importedData = JSON.parse(e.target.result);
                 
-                if (confirm('This will merge the imported data with existing data. Continue?')) {
-                    // Merge data
-                    this.data = { ...this.data, ...importedData };
-                    this.saveData();
-                    this.updateStats();
-                    this.renderCalendar();
-                    this.renderChart();
-                    this.renderRecentEntries();
-                    this.showToast('Data imported successfully');
+                if (confirm('This will merge the imported data with existing server data. Continue?')) {
+                    const response = await fetch('/api/import', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ importData: importedData })
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        await this.loadData();
+                        this.updateStats();
+                        this.renderCalendar();
+                        this.renderChart();
+                        this.renderRecentEntries();
+                        this.showToast(`Data imported successfully! ${result.entriesImported} entries imported.`);
+                    } else {
+                        throw new Error('Failed to import data');
+                    }
                 }
             } catch (error) {
-                alert('Error importing data. Please check the file format.');
+                console.error('Import error:', error);
+                this.showToast('Error importing data. Please check the file format.', 'error');
             }
         };
         reader.readAsText(file);
     }
 
-    clearAllData() {
-        if (confirm('Are you sure you want to clear ALL data? This cannot be undone.')) {
-            if (confirm('This will permanently delete all t-shirt tracking data. Are you absolutely sure?')) {
-                this.data = {};
-                this.saveData();
-                this.updateStats();
-                this.renderCalendar();
-                this.renderChart();
-                this.renderRecentEntries();
-                this.showToast('All data cleared');
+    async clearAllData() {
+        if (confirm('Are you sure you want to clear ALL shared data? This will affect all users and cannot be undone.')) {
+            if (confirm('This will permanently delete all t-shirt tracking data for everyone. Are you absolutely sure?')) {
+                try {
+                    const response = await fetch('/api/data', {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        this.data = {};
+                        this.updateStats();
+                        this.renderCalendar();
+                        this.renderChart();
+                        this.renderRecentEntries();
+                        this.showToast('All data cleared');
+                    } else {
+                        throw new Error('Failed to clear data');
+                    }
+                } catch (error) {
+                    this.showToast('Failed to clear data', 'error');
+                }
             }
         }
     }
 
-    showToast(message) {
+    showToast(message, type = 'success') {
         // Create toast element
         const toast = document.createElement('div');
+        
+        const colors = {
+            success: '#48bb78',
+            error: '#e53e3e',
+            info: '#4299e1',
+            warning: '#ed8936'
+        };
+        
         toast.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: #48bb78;
+            background: ${colors[type] || colors.success};
             color: white;
             padding: 12px 20px;
             border-radius: 8px;
@@ -545,23 +713,27 @@ class TShirtTracker {
             z-index: 1000;
             font-weight: 500;
             transition: opacity 0.3s;
+            max-width: 300px;
         `;
         toast.textContent = message;
         
         document.body.appendChild(toast);
         
-        // Remove after 3 seconds
+        // Remove after appropriate time
+        const duration = type === 'error' ? 5000 : 3000;
         setTimeout(() => {
             toast.style.opacity = '0';
             setTimeout(() => {
-                document.body.removeChild(toast);
+                if (document.body.contains(toast)) {
+                    document.body.removeChild(toast);
+                }
             }, 300);
-        }, 3000);
+        }, duration);
     }
 }
 
 // Initialize the app when DOM is loaded
 let tracker;
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     tracker = new TShirtTracker();
 });

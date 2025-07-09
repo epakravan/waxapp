@@ -1,14 +1,22 @@
 # David's T1T T-Shirt Tracker 🎯👕
 
-A fun webapp to log and visualize when David wears his t1t t-shirt on Zoom calls.
+A collaborative webapp where everyone can log and visualize when David wears his t1t t-shirt on Zoom calls. Multiple users can track entries together with real-time updates!
 
 ## Features
 
+### 🚀 Collaborative Tracking
+- **Shared Data**: All users see the same data in real-time
+- **Multi-User Support**: Multiple people can log entries simultaneously
+- **Auto-Refresh**: Updates every 30 seconds to show other users' changes
+- **Connection Status**: Visual indicator showing online/offline status
+- **User Attribution**: Tracks which browser/user made each entry
+
 ### 📝 Logging
-- Easy date selection (defaults to today)
+- Easy date selection (defaults to today in Pacific Time)
 - Optional notes for each entry (meeting type, context, etc.)
 - One-click logging with visual feedback
 - Quick logging directly from calendar clicks
+- Real-time updates across all connected users
 
 ### 📊 Statistics
 - **Total T-Shirt Days**: Total count of logged days
@@ -33,20 +41,37 @@ A fun webapp to log and visualize when David wears his t1t t-shirt on Zoom calls
 - Shows date and notes for each logged day
 
 ### 💾 Data Management
-- **Export**: Download all data as JSON file
-- **Import**: Upload and merge data from JSON file
-- **Clear All**: Remove all data (with double confirmation)
-- All data stored locally in browser's localStorage
+- **Export**: Download all shared data as JSON file
+- **Import**: Upload and merge data with existing shared data
+- **Clear All**: Remove all shared data (affects all users, double confirmation required)
+- **Persistent Storage**: Data stored on server, shared across all users
+- **Backup Recommended**: Regular exports recommended for data safety
 
 ## How to Use
 
 ### Running the App
+
+#### Prerequisites
+- Node.js (v14 or later)
+- npm
+
+#### Installation & Startup
 1. Open a terminal in the project directory
-2. Start a local web server:
+2. Install dependencies:
    ```bash
-   python3 -m http.server 8080
+   npm install
    ```
-3. Open your browser and navigate to `http://localhost:8080`
+3. Start the server:
+   ```bash
+   npm start
+   ```
+4. Open your browser and navigate to `http://localhost:3000`
+5. Share the URL with team members for collaborative tracking!
+
+#### Development Mode
+```bash
+npm run dev  # Uses nodemon for auto-restart
+```
 
 ### Logging T-Shirt Days
 1. **Quick Method**: Click any day on the calendar and confirm
@@ -68,30 +93,40 @@ A fun webapp to log and visualize when David wears his t1t t-shirt on Zoom calls
 ## Technical Details
 
 ### Technology Stack
+- **Backend**: Node.js with Express.js REST API
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript
-- **Charts**: Chart.js for trend visualization
-- **Storage**: Browser localStorage (client-side only)
+- **Charts**: Chart.js for trend visualization  
+- **Storage**: File-based JSON storage (server-side)
+- **Real-time**: Polling-based updates every 30 seconds
 - **Responsive**: Mobile-friendly design
+- **Cross-Platform**: Works on any device with a web browser
 
 ### File Structure
 ```
+├── server.js           # Express.js backend server
+├── package.json        # Node.js dependencies and scripts
 ├── index.html          # Main application HTML
 ├── styles.css          # All styling and responsive design
-├── script.js           # Application logic and functionality
+├── script.js           # Frontend logic with API integration
+├── tshirt-data.json    # Shared data storage (auto-created)
 └── README.md           # This documentation
 ```
 
 ### Data Format
-Data is stored as JSON in localStorage with the key `tshirt-tracker-data`:
+Data is stored as JSON in `tshirt-data.json` on the server:
 ```json
 {
   "2025-07-09": {
     "notes": "Team standup meeting",
-    "timestamp": "2025-07-09T10:30:00.000Z"
+    "timestamp": "2025-07-09T10:30:00.000Z",
+    "userAgent": "Mozilla/5.0...",
+    "lastModified": "2025-07-09T10:30:00.000Z"
   },
   "2025-07-08": {
     "notes": "Client presentation",
-    "timestamp": "2025-07-08T15:45:00.000Z"
+    "timestamp": "2025-07-08T15:45:00.000Z",
+    "userAgent": "Mozilla/5.0...",
+    "lastModified": "2025-07-08T15:45:00.000Z"
   }
 }
 ```
@@ -127,10 +162,19 @@ The app can be easily customized by modifying:
 - Statistics calculations in `script.js`
 - Chart configuration in the `renderChart()` method
 
-## Privacy
-- All data stays in your browser (localStorage)
-- No external servers or data transmission
-- Data persists until manually cleared or browser data is reset
+## Collaboration & Privacy
+- **Shared Data**: All entries are visible to all users accessing the same server
+- **Local Server**: Data stays on your local network (no external transmission)
+- **User Tracking**: Browser user-agent stored with entries for troubleshooting
+- **Data Persistence**: Data persists on server until manually cleared
+- **Team Access**: Share `http://localhost:3000` with team members
+
+## Production Deployment
+For team use across different networks:
+1. Deploy to a cloud server (Heroku, AWS, DigitalOcean, etc.)
+2. Update the URL in team communications
+3. Consider adding authentication for larger teams
+4. Set up regular data backups
 
 ---
 
