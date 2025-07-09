@@ -3,20 +3,26 @@ class TShirtTracker {
         this.data = {};
         this.currentDate = new Date();
         this.chart = null;
-        this.lastUpdateTime = null;
-        this.refreshInterval = null;
+        this.unsubscribe = null; // For Firebase listener
+        this.isOnline = false;
         this.init();
     }
 
     async init() {
+        // Wait for Firebase to be ready
+        if (typeof firebase === 'undefined' || !window.tshirtCollection) {
+            console.error('Firebase not initialized. Please check firebase-config.js');
+            this.showToast('Firebase configuration missing. Please set up Firebase.', 'error');
+            return;
+        }
+        
         this.setupEventListeners();
         this.setTodayAsDefault();
-        await this.loadData();
+        await this.setupFirebaseListener();
         this.updateStats();
         this.renderCalendar();
         this.renderChart();
         this.renderRecentEntries();
-        this.startAutoRefresh();
     }
 
     setupEventListeners() {
@@ -104,20 +110,37 @@ class TShirtTracker {
         };
     }
 
-    async loadData() {
+    async setupFirebaseListener() {
         try {
-            const response = await fetch('/api/data');
-            if (response.ok) {
-                this.data = await response.json();
-                this.updateConnectionStatus(true);
-            } else {
-                throw new Error('Failed to load data');
-            }
+            // Set up real-time listener for Firebase collection
+            this.unsubscribe = window.tshirtCollection.onSnapshot(
+                (snapshot) => {
+                    this.data = {};
+                    snapshot.forEach((doc) => {
+                        this.data[doc.id] = doc.data();
+                    });
+                    
+                    this.updateConnectionStatus(true);
+                    this.updateStats();
+                    this.renderCalendar();
+                    this.renderChart();
+                    this.renderRecentEntries();
+                    
+                    if (this.isOnline) {
+                        this.showToast('Data updated in real-time', 'info');
+                    }
+                    this.isOnline = true;
+                },
+                (error) => {
+                    console.error('Firebase listener error:', error);
+                    this.updateConnectionStatus(false);
+                    this.showToast('Connection lost. Retrying...', 'error');
+                }
+            );
         } catch (error) {
-            console.error('Error loading data:', error);
-            this.showToast('Failed to connect to server', 'error');
+            console.error('Error setting up Firebase listener:', error);
             this.updateConnectionStatus(false);
-            this.data = {};
+            this.showToast('Failed to connect to Firebase', 'error');
         }
     }
 
@@ -136,25 +159,15 @@ class TShirtTracker {
 
     async saveEntry(date, notes) {
         try {
-            const response = await fetch('/api/data', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    date,
-                    notes,
-                    userAgent: navigator.userAgent
-                })
-            });
+            const entryData = {
+                notes: notes || '',
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                userAgent: navigator.userAgent,
+                lastModified: firebase.firestore.FieldValue.serverTimestamp()
+            };
             
-            if (response.ok) {
-                const result = await response.json();
-                this.data[date] = result.data;
-                return true;
-            } else {
-                throw new Error('Failed to save entry');
-            }
+            await window.tshirtCollection.doc(date).set(entryData);
+            return true;
         } catch (error) {
             console.error('Error saving entry:', error);
             this.showToast('Failed to save entry', 'error');
@@ -164,24 +177,14 @@ class TShirtTracker {
 
     async updateEntry(date, notes) {
         try {
-            const response = await fetch(`/api/data/${date}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    notes,
-                    userAgent: navigator.userAgent
-                })
-            });
+            const updateData = {
+                notes: notes || '',
+                lastModified: firebase.firestore.FieldValue.serverTimestamp(),
+                userAgent: navigator.userAgent
+            };
             
-            if (response.ok) {
-                const result = await response.json();
-                this.data[date] = result.data;
-                return true;
-            } else {
-                throw new Error('Failed to update entry');
-            }
+            await window.tshirtCollection.doc(date).update(updateData);
+            return true;
         } catch (error) {
             console.error('Error updating entry:', error);
             this.showToast('Failed to update entry', 'error');
@@ -191,16 +194,8 @@ class TShirtTracker {
 
     async deleteEntry(date) {
         try {
-            const response = await fetch(`/api/data/${date}`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                delete this.data[date];
-                return true;
-            } else {
-                throw new Error('Failed to delete entry');
-            }
+            await window.tshirtCollection.doc(date).delete();
+            return true;
         } catch (error) {
             console.error('Error deleting entry:', error);
             this.showToast('Failed to delete entry', 'error');
@@ -470,35 +465,12 @@ class TShirtTracker {
         }
     }
 
-    startAutoRefresh() {
-        // Refresh data every 30 seconds to show other users' updates
-        this.refreshInterval = setInterval(() => {
-            this.refreshData();
-        }, 30000);
-    }
-
-    async refreshData() {
-        try {
-            const response = await fetch('/api/data');
-            if (response.ok) {
-                this.updateConnectionStatus(true);
-                const newData = await response.json();
-                const hasChanges = JSON.stringify(this.data) !== JSON.stringify(newData);
-                
-                if (hasChanges) {
-                    this.data = newData;
-                    this.updateStats();
-                    this.renderCalendar();
-                    this.renderChart();
-                    this.renderRecentEntries();
-                    this.showToast('Data updated by another user', 'info');
-                }
-            } else {
-                this.updateConnectionStatus(false);
-            }
-        } catch (error) {
-            console.error('Error refreshing data:', error);
-            this.updateConnectionStatus(false);
+    // Firebase provides real-time updates, no manual refresh needed!
+    
+    cleanup() {
+        // Clean up Firebase listener when page unloads
+        if (this.unsubscribe) {
+            this.unsubscribe();
         }
     }
 
@@ -609,10 +581,21 @@ class TShirtTracker {
 
     async exportData() {
         try {
-            // Get fresh data from server
-            await this.loadData();
+            // Convert Firebase timestamps to readable format for export
+            const exportData = {};
+            Object.keys(this.data).forEach(date => {
+                const entry = { ...this.data[date] };
+                // Convert Firebase timestamps to ISO strings
+                if (entry.timestamp && entry.timestamp.toDate) {
+                    entry.timestamp = entry.timestamp.toDate().toISOString();
+                }
+                if (entry.lastModified && entry.lastModified.toDate) {
+                    entry.lastModified = entry.lastModified.toDate().toISOString();
+                }
+                exportData[date] = entry;
+            });
             
-            const dataStr = JSON.stringify(this.data, null, 2);
+            const dataStr = JSON.stringify(exportData, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(dataBlob);
             
@@ -624,6 +607,7 @@ class TShirtTracker {
             URL.revokeObjectURL(url);
             this.showToast('Data exported successfully');
         } catch (error) {
+            console.error('Export error:', error);
             this.showToast('Failed to export data', 'error');
         }
     }
@@ -636,26 +620,28 @@ class TShirtTracker {
             try {
                 const importedData = JSON.parse(e.target.result);
                 
-                if (confirm('This will merge the imported data with existing server data. Continue?')) {
-                    const response = await fetch('/api/import', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ importData: importedData })
+                if (confirm('This will merge the imported data with existing Firebase data. Continue?')) {
+                    const batch = window.db.batch();
+                    let importCount = 0;
+                    
+                    Object.keys(importedData).forEach(date => {
+                        const entry = importedData[date];
+                        const docRef = window.tshirtCollection.doc(date);
+                        
+                        // Convert string timestamps back to Firebase timestamps if needed
+                        const entryData = {
+                            notes: entry.notes || '',
+                            userAgent: entry.userAgent || 'Imported',
+                            timestamp: entry.timestamp ? new Date(entry.timestamp) : firebase.firestore.FieldValue.serverTimestamp(),
+                            lastModified: firebase.firestore.FieldValue.serverTimestamp()
+                        };
+                        
+                        batch.set(docRef, entryData, { merge: true });
+                        importCount++;
                     });
                     
-                    if (response.ok) {
-                        const result = await response.json();
-                        await this.loadData();
-                        this.updateStats();
-                        this.renderCalendar();
-                        this.renderChart();
-                        this.renderRecentEntries();
-                        this.showToast(`Data imported successfully! ${result.entriesImported} entries imported.`);
-                    } else {
-                        throw new Error('Failed to import data');
-                    }
+                    await batch.commit();
+                    this.showToast(`Data imported successfully! ${importCount} entries imported.`);
                 }
             } catch (error) {
                 console.error('Import error:', error);
@@ -669,21 +655,17 @@ class TShirtTracker {
         if (confirm('Are you sure you want to clear ALL shared data? This will affect all users and cannot be undone.')) {
             if (confirm('This will permanently delete all t-shirt tracking data for everyone. Are you absolutely sure?')) {
                 try {
-                    const response = await fetch('/api/data', {
-                        method: 'DELETE'
+                    const snapshot = await window.tshirtCollection.get();
+                    const batch = window.db.batch();
+                    
+                    snapshot.docs.forEach((doc) => {
+                        batch.delete(doc.ref);
                     });
                     
-                    if (response.ok) {
-                        this.data = {};
-                        this.updateStats();
-                        this.renderCalendar();
-                        this.renderChart();
-                        this.renderRecentEntries();
-                        this.showToast('All data cleared');
-                    } else {
-                        throw new Error('Failed to clear data');
-                    }
+                    await batch.commit();
+                    this.showToast('All data cleared');
                 } catch (error) {
+                    console.error('Error clearing data:', error);
                     this.showToast('Failed to clear data', 'error');
                 }
             }
@@ -736,4 +718,11 @@ class TShirtTracker {
 let tracker;
 document.addEventListener('DOMContentLoaded', async () => {
     tracker = new TShirtTracker();
+});
+
+// Cleanup Firebase listener when page unloads
+window.addEventListener('beforeunload', () => {
+    if (tracker) {
+        tracker.cleanup();
+    }
 });

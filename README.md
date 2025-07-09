@@ -5,11 +5,12 @@ A collaborative webapp where everyone can log and visualize when David wears his
 ## Features
 
 ### 🚀 Collaborative Tracking
-- **Shared Data**: All users see the same data in real-time
+- **Firebase Real-time**: Instant updates across all users with Firestore
 - **Multi-User Support**: Multiple people can log entries simultaneously
-- **Auto-Refresh**: Updates every 30 seconds to show other users' changes
+- **Live Sync**: Changes appear instantly without refresh
 - **Connection Status**: Visual indicator showing online/offline status
 - **User Attribution**: Tracks which browser/user made each entry
+- **Cloud Storage**: Data stored securely in Firebase cloud
 
 ### 📝 Logging
 - Easy date selection (defaults to today in Pacific Time)
@@ -49,29 +50,31 @@ A collaborative webapp where everyone can log and visualize when David wears his
 
 ## How to Use
 
-### Running the App
+### Setup & Deployment
 
-#### Prerequisites
-- Node.js (v14 or later)
-- npm
+#### Firebase Setup (Required)
+1. Follow the detailed instructions in [FIREBASE_SETUP.md](FIREBASE_SETUP.md)
+2. Create a Firebase project and enable Firestore
+3. Update `firebase-config.js` with your Firebase configuration
 
-#### Installation & Startup
-1. Open a terminal in the project directory
-2. Install dependencies:
+#### Local Development
+1. Open `index.html` in your browser, or
+2. Use a simple HTTP server:
    ```bash
-   npm install
+   python3 -m http.server 8080
+   # or
+   npx serve .
    ```
-3. Start the server:
-   ```bash
-   npm start
-   ```
-4. Open your browser and navigate to `http://localhost:3000`
-5. Share the URL with team members for collaborative tracking!
 
-#### Development Mode
-```bash
-npm run dev  # Uses nodemon for auto-restart
-```
+#### Netlify Deployment (Recommended)
+1. Push your code to GitHub/GitLab
+2. Connect repository to Netlify
+3. Deploy! No build process needed - it's a static site
+4. Share your Netlify URL with team members
+
+#### Alternative Hosting
+- Vercel, GitHub Pages, or any static hosting service
+- No server required - pure frontend with Firebase backend
 
 ### Logging T-Shirt Days
 1. **Quick Method**: Click any day on the calendar and confirm
@@ -93,23 +96,23 @@ npm run dev  # Uses nodemon for auto-restart
 ## Technical Details
 
 ### Technology Stack
-- **Backend**: Node.js with Express.js REST API
+- **Backend**: Firebase Firestore (NoSQL cloud database)
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript
 - **Charts**: Chart.js for trend visualization  
-- **Storage**: File-based JSON storage (server-side)
-- **Real-time**: Polling-based updates every 30 seconds
+- **Storage**: Firebase Firestore with real-time sync
+- **Real-time**: Firebase real-time listeners (instant updates)
+- **Hosting**: Static hosting (Netlify, Vercel, etc.)
 - **Responsive**: Mobile-friendly design
 - **Cross-Platform**: Works on any device with a web browser
 
 ### File Structure
 ```
-├── server.js           # Express.js backend server
-├── package.json        # Node.js dependencies and scripts
 ├── index.html          # Main application HTML
 ├── styles.css          # All styling and responsive design
-├── script.js           # Frontend logic with API integration
-├── tshirt-data.json    # Shared data storage (auto-created)
-└── README.md           # This documentation
+├── script.js           # Frontend logic with Firebase integration
+├── firebase-config.js  # Firebase configuration (update with your keys)
+├── README.md           # This documentation
+└── FIREBASE_SETUP.md   # Step-by-step Firebase setup guide
 ```
 
 ### Data Format
@@ -163,18 +166,20 @@ The app can be easily customized by modifying:
 - Chart configuration in the `renderChart()` method
 
 ## Collaboration & Privacy
-- **Shared Data**: All entries are visible to all users accessing the same server
-- **Local Server**: Data stays on your local network (no external transmission)
+- **Cloud Storage**: Data stored securely in Firebase (Google Cloud)
+- **Real-time Sync**: Instant updates across all users worldwide
 - **User Tracking**: Browser user-agent stored with entries for troubleshooting
-- **Data Persistence**: Data persists on server until manually cleared
-- **Team Access**: Share `http://localhost:3000` with team members
+- **Data Persistence**: Data persists in Firebase until manually cleared
+- **Global Access**: Share your deployed URL with team members anywhere
+- **Firebase Security**: Data protected by Firebase security rules
 
-## Production Deployment
-For team use across different networks:
-1. Deploy to a cloud server (Heroku, AWS, DigitalOcean, etc.)
-2. Update the URL in team communications
-3. Consider adding authentication for larger teams
-4. Set up regular data backups
+## Scaling & Production
+- **Firebase Free Tier**: Generous limits for small teams
+- **Auto-scaling**: Firebase scales automatically with usage
+- **Global CDN**: Fast access from anywhere in the world
+- **Authentication**: Can add Firebase Auth for user management
+- **Backup**: Firebase handles backups automatically
+- **Monitoring**: Firebase provides usage analytics and monitoring
 
 ---
 
