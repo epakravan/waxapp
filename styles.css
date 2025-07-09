@@ -308,9 +308,14 @@ input[type="text"]:focus {
 }
 
 /* Chart Section */
+.chart-section {
+    position: relative;
+    height: 400px;
+}
+
 .chart-section canvas {
     max-width: 100%;
-    height: auto;
+    max-height: 400px;
 }
 
 /* Responsive Design */

@@ -371,6 +371,12 @@ class TShirtTracker {
                             stepSize: 1
                         }
                     }
+                },
+                layout: {
+                    padding: {
+                        top: 10,
+                        bottom: 10
+                    }
                 }
             }
         });
