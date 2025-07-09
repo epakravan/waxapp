@@ -1,12 +1,13 @@
 // Firebase Configuration
-// Replace this with your Firebase project config from Firebase Console > Project Settings > General > Your apps
+// David's T-Shirt Tracker Firebase Project
 const firebaseConfig = {
-  apiKey: "your-api-key-here",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "your-app-id"
+  apiKey: "AIzaSyAqHF2nR-ipCUjLKaQSWxLPOjD6fTdgqos",
+  authDomain: "waxapp-ff7c2.firebaseapp.com",
+  projectId: "waxapp-ff7c2",
+  storageBucket: "waxapp-ff7c2.firebasestorage.app",
+  messagingSenderId: "179937755040",
+  appId: "1:179937755040:web:38b0ffe6d9b3e22a0b6ec5",
+  measurementId: "G-ZF2XCN86KK"
 };
 
 // Initialize Firebase
