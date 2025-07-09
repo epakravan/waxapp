@@ -58,8 +58,46 @@ class TShirtTracker {
     }
 
     setTodayAsDefault() {
-        const today = new Date().toISOString().split('T')[0];
+        const today = this.getTodayInPT();
         document.getElementById('date-input').value = today;
+    }
+
+    getTodayInPT() {
+        const now = new Date();
+        // Get current time in Pacific timezone
+        const ptTime = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/Los_Angeles',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(now);
+        return ptTime; // Returns YYYY-MM-DD format
+    }
+
+    formatDateInPT(dateString) {
+        const date = new Date(dateString + 'T00:00:00');
+        return date.toLocaleDateString('en-US', {
+            timeZone: 'America/Los_Angeles',
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+
+    getCurrentMonthInPT() {
+        const now = new Date();
+        const ptDateString = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/Los_Angeles',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(now);
+        const [year, month] = ptDateString.split('-').map(Number);
+        return {
+            year: year,
+            month: month - 1 // JavaScript months are 0-based
+        };
     }
 
     loadData() {
@@ -143,13 +181,13 @@ class TShirtTracker {
         const dates = Object.keys(this.data).sort();
         const totalDays = dates.length;
         
-        // This month count
-        const now = new Date();
-        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        // This month count (using PT)
+        const ptMonth = this.getCurrentMonthInPT();
+        const thisMonthStart = new Date(ptMonth.year, ptMonth.month, 1);
+        const thisMonthEnd = new Date(ptMonth.year, ptMonth.month + 1, 0);
         
         const thisMonthCount = dates.filter(date => {
-            const d = new Date(date);
+            const d = new Date(date + 'T00:00:00');
             return d >= thisMonthStart && d <= thisMonthEnd;
         }).length;
 
@@ -186,9 +224,15 @@ class TShirtTracker {
         }
         longestStreak = Math.max(longestStreak, tempStreak);
 
-        // Calculate current streak (from today backwards)
-        const today = new Date().toISOString().split('T')[0];
-        const todayIndex = sortedDates.indexOf(today);
+        // Calculate current streak (from today backwards - using PT)
+        const today = new Date();
+        const todayPT = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/Los_Angeles',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).format(today);
+        const todayIndex = sortedDates.indexOf(todayPT);
         
         if (todayIndex === -1) {
             currentStreakLength = 0;
@@ -283,8 +327,8 @@ class TShirtTracker {
 
         const dateStr = date.toISOString().split('T')[0];
         
-        // Check if it's today
-        const today = new Date().toISOString().split('T')[0];
+        // Check if it's today (using PT)
+        const today = this.getTodayInPT();
         if (dateStr === today) {
             dayEl.classList.add('today');
         }
@@ -309,7 +353,7 @@ class TShirtTracker {
                     }
                 } else {
                     // Quick log for this date
-                    if (confirm(`Log t-shirt day for ${date.toLocaleDateString()}?`)) {
+                    if (confirm(`Log t-shirt day for ${this.formatDateInPT(dateStr)}?`)) {
                         this.data[dateStr] = {
                             notes: '',
                             timestamp: new Date().toISOString()
@@ -416,13 +460,7 @@ class TShirtTracker {
 
         container.innerHTML = dates.map(date => {
             const entry = this.data[date];
-            const dateObj = new Date(date);
-            const formattedDate = dateObj.toLocaleDateString('en-US', {
-                weekday: 'short',
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-            });
+            const formattedDate = this.formatDateInPT(date);
 
             return `
                 <div class="entry-item">
